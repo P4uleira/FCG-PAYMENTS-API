@@ -60,11 +60,14 @@ builder.Services.AddMassTransit(config =>
         var rabbitMqConfig =
             builder.Configuration.GetSection("RabbitMq");
 
-        cfg.Host(rabbitMqConfig["Host"], "/", h =>
-        {
-            h.Username(rabbitMqConfig["Username"]!);
-            h.Password(rabbitMqConfig["Password"]!);
-        });
+        cfg.Host(
+            rabbitMqConfig["Host"],
+            "/",
+            host =>
+            {
+                host.Username(rabbitMqConfig["Username"]!);
+                host.Password(rabbitMqConfig["Password"]!);
+            });
 
         cfg.ReceiveEndpoint(
             "payments-order-placed-event",
@@ -80,13 +83,9 @@ builder.Services.AddMassTransit(config =>
 
 var app = builder.Build();
 
-#region Middleware
+#region Pipeline
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-#endregion
-
-#region Swagger
 
 if (app.Environment.IsDevelopment())
 {
@@ -94,10 +93,26 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-#endregion
+var isRunningInContainer =
+    string.Equals(
+        Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+        "true",
+        StringComparison.OrdinalIgnoreCase);
 
-app.UseHttpsRedirection();
+if (!isRunningInContainer)
+{
+    app.UseHttpsRedirection();
+}
 
 app.MapControllers();
+
+app.MapGet("/health", () =>
+    Results.Ok(new
+    {
+        service = "PaymentsAPI",
+        status = "Healthy"
+    }));
+
+#endregion
 
 app.Run();
