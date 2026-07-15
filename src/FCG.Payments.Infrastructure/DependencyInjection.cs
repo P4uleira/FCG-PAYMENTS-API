@@ -19,7 +19,15 @@ public static class DependencyInjection
                 "Connection string 'DefaultConnection' was not found.");
 
         services.AddDbContext<PaymentsDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseSqlServer(
+                connectionString,
+                sqlServerOptions =>
+                {
+                    sqlServerOptions.EnableRetryOnFailure(
+                        maxRetryCount: 10,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorNumbersToAdd: null);
+                }));
 
         services.AddScoped<
             IPaymentRepository,
